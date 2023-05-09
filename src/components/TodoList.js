@@ -4,6 +4,7 @@
   할 일 목록의 추가, 삭제, 완료 상태 변경 등의 기능을 구현하였습니다.
 */
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import TodoItem from "@/components/TodoItem";
 import styles from "@/styles/TodoList.module.css";
 
@@ -17,6 +18,7 @@ import {
   updateDoc,
   deleteDoc,
   orderBy,
+  where,
   onSnapshot,
 } from "firebase/firestore";
 
@@ -31,8 +33,17 @@ const TodoList = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
 
+  const { data } = useSession();
+
   const getTodos = async () => {
-    const q = query(todoCollection, orderBy("datetime", "asc"));
+    // const q = query(todoCollection, orderBy("datetime", "asc"));
+    if (!data?.user?.name) return;
+
+    const q = query(
+      todoCollection,
+      where("userId", "==", data?.user?.id),
+      orderBy("datetime", "asc")
+    )
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const newTodos = [];
       querySnapshot.forEach((doc) => {
@@ -48,13 +59,14 @@ const TodoList = () => {
     return () => {
       unsubscribe;
     }
-  }, []);
+  }, [data]);
 
   // addTodo 함수는 입력값을 이용하여 새로운 할 일을 목록에 추가하는 함수입니다.
   const addTodo = async() => {
     // 입력값이 비어있는 경우 함수를 종료합니다.
     if (input.trim() === "") return;
     const docRef = await addDoc(todoCollection, {
+      userId: data?.user?.id,
       text: input,
       completed: false,
       date: selectedDate,
@@ -111,7 +123,7 @@ const TodoList = () => {
   return (
     <div className={styles.container}>
       <h1 className="text-xl mb-4 font-bold underline underline-offset-4 decoration-wavy text-pink-500">
-        Todo List
+        {data?.user?.name}'s Todo List
       </h1>
       <div className={styles.inputContainer}></div>
       {"할 일 입력" /* 할 일을 입력받는 텍스트 필드입니다. */}
